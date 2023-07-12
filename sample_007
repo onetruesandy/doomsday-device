@@ -1,0 +1,202 @@
+import pandas as pd
+
+# Assuming your dataset is stored in a DataFrame called 'df'
+
+# Sort the DataFrame by company name and year
+df.sort_values(['company_name', 'year'], inplace=True)
+
+# Group the data by company name
+groups = df.groupby('company_name')
+
+# Iterate over each group
+for _, group in groups:
+    # Check if the group has missing Q4 data
+    if group['quarter'].str.contains('Q4').sum() == 0:
+        continue  # Skip the group if Q4 data is missing
+
+    # Calculate percentage contribution of quarterly earnings in the previous year
+    previous_year = group['year'].min() - 1
+    previous_year_earnings = group[group['year'] == previous_year]['quarterly_earnings'].sum()
+    group['contribution_percentage'] = group['quarterly_earnings'] / previous_year_earnings
+
+    # Multiply percentages with Q4 earnings to fill Q1, Q2, and Q3
+    group.loc[group['quarter'] != 'Q4', 'quarterly_earnings'] *= group.loc[group['quarter'] == 'Q4', 'contribution_percentage'].values[0]
+
+# Drop the 'contribution_percentage' column
+df.drop('contribution_percentage', axis=1, inplace=True)
+
+
+
+
+import pandas as pd
+
+# Assuming your dataset is stored in a DataFrame called 'df'
+
+# Sort the DataFrame by company name and year
+df.sort_values(['company_name', 'year'], inplace=True)
+
+# Group the data by company name
+groups = df.groupby('company_name')
+
+# Iterate over each group
+for _, group in groups:
+    # Check if the group has missing Q4 data
+    if group['quarter'].str.contains('Q4').sum() == 0:
+        continue  # Skip the group if Q4 data is missing
+
+    # Check if Q2 is present
+    if 'Q2' not in group['quarter'].values:
+        continue  # Skip the group if Q2 is missing
+
+    # Calculate percentage contribution of quarterly earnings in the previous year
+    previous_year = group['year'].min() - 1
+    previous_year_group = groups.get_group(group['company_name'].values[0])
+    while previous_year_group[previous_year_group['year'] == previous_year].empty:
+        previous_year -= 1
+        if previous_year_group[previous_year_group['year'] == previous_year].empty and previous_year < previous_year_group['year'].min():
+            break
+    previous_year_earnings_q4 = previous_year_group[(previous_year_group['year'] == previous_year) & (previous_year_group['quarter'] == 'Q4')]['quarterly_earnings'].sum()
+    previous_year_earnings_q2 = previous_year_group[(previous_year_group['year'] == previous_year) & (previous_year_group['quarter'] == 'Q2')]['quarterly_earnings'].sum()
+    previous_year_earnings_q1_percentage = previous_year_group[(previous_year_group['year'] == previous_year) & (previous_year_group['quarter'] == 'Q1')]['quarterly_earnings'].sum() / previous_year_earnings_q4
+    previous_year_earnings_q3_percentage = previous_year_group[(previous_year_group['year'] == previous_year) & (previous_year_group['quarter'] == 'Q3')]['quarterly_earnings'].sum() / previous_year_earnings_q4
+
+    # Calculate Q1 and Q3 based on Q4 and Q2 earnings
+    q4 = group[group['quarter'] == 'Q4']['quarterly_earnings'].values[0]
+    q2 = group[group['quarter'] == 'Q2']['quarterly_earnings'].values[0]
+    q1 = (q4 - q2) * previous_year_earnings_q1_percentage
+    q3 = (q4 - q2) * previous_year_earnings_q3_percentage
+
+    # Update the missing values for Q1 and Q3
+    group.loc[group['quarter'] == 'Q1', 'quarterly_earnings'] = q1
+    group.loc[group['quarter'] == 'Q3', 'quarterly_earnings'] = q3
+
+# Concatenate the updated groups back into a DataFrame
+df = pd.concat(groups)
+
+# Sort the DataFrame by company name and year
+df.sort_values(['company_name', 'year'], inplace=True)
+
+import pandas as pd
+import numpy as np
+
+# Assuming your dataset is stored in a DataFrame called 'df'
+
+# Sort the DataFrame by company name and year
+df.sort_values(['company_name', 'year'], inplace=True)
+
+# Group the data by company name
+groups = df.groupby('company_name')
+
+# Iterate over each group
+for _, group in groups:
+    # Check if the group has missing Q4 data
+    if group['quarter'].str.contains('Q4').sum() == 0:
+        continue  # Skip the group if Q4 data is missing
+
+    # Check if Q2 is present
+    if 'Q2' not in group['quarter'].values:
+        continue  # Skip the group if Q2 is missing
+
+    # Find the previous year's data for the same company
+    previous_year = group['year'].min() - 1
+    previous_year_group = None
+    while previous_year_group is None or previous_year_group[previous_year_group['year'] == previous_year].empty:
+        previous_year -= 1
+        if previous_year < previous_year_group['year'].min():
+            break
+        previous_year_group = groups.get_group(group['company_name'].values[0])
+
+    # Check if the previous year's data is available for the same company
+    if previous_year_group is None or previous_year_group[previous_year_group['year'] == previous_year].empty:
+        continue  # Skip the group if previous year's data is missing
+
+    # Get the previous year's earnings for Q4, Q2, Q1, and Q3
+    previous_year_earnings_q4 = previous_year_group[(previous_year_group['year'] == previous_year) & (previous_year_group['quarter'] == 'Q4')]['quarterly_earnings'].sum()
+    previous_year_earnings_q2 = previous_year_group[(previous_year_group['year'] == previous_year) & (previous_year_group['quarter'] == 'Q2')]['quarterly_earnings'].sum()
+    previous_year_earnings_q1 = previous_year_group[(previous_year_group['year'] == previous_year) & (previous_year_group['quarter'] == 'Q1')]['quarterly_earnings'].sum()
+    previous_year_earnings_q3 = previous_year_group[(previous_year_group['year'] == previous_year) & (previous_year_group['quarter'] == 'Q3')]['quarterly_earnings'].sum()
+
+    # Calculate Q4 and Q2 based on the previous year's earnings
+    q4_percentage_contribution = previous_year_earnings_q4 / previous_year_earnings_q4
+    q2_percentage_contribution = previous_year_earnings_q2 / previous_year_earnings_q4
+    q4 = group[group['quarter'] == 'Q4']['quarterly_earnings'].values[0] * q4_percentage_contribution
+    q2 = previous_year_earnings_q2 * q2_percentage_contribution
+
+    # Calculate Q1 and Q3 based on Q4, Q2, and the previous year's earnings
+    q4_actual = group[group['quarter'] == 'Q4']['quarterly_earnings'].values[0]
+    q2_actual = group[group['quarter'] == 'Q2']['quarterly_earnings'].values[0]
+    if pd.isnull(group[group['quarter'] == 'Q1']['quarterly_earnings']).values[0]:
+        q1 = (q4_actual - q2_actual) * previous_year_earnings_q1 / (q4_actual - q2_actual)
+    else:
+        q1 = group[group['quarter'] == 'Q1']['quarterly_earnings'].values[0]
+    if pd.isnull(group[group['quarter'] == 'Q3']['quarterly_earnings']).values[0]:
+        q3 = (q4_actual - q2_actual) * previous_year_earnings_q3 / (q4_actual - q2_actual)
+    else:
+        q3 = group[group['quarter'] == 'Q3']['quarterly_earnings'].values[0]
+
+    # Update the missing values for Q1, Q2, Q3, and Q4
+    group.loc[group['quarter'] == 'Q1', 'quarterly_earnings'] = q1
+    group.loc[group['quarter'] == 'Q2', 'quarterly_earnings'] = q2
+    group.loc[group['quarter'] == 'Q3', 'quarterly_earnings'] = q3
+    group.loc[group['quarter'] == 'Q4', 'quarterly_earnings'] = q4
+
+    # Add a new column to indicate if values were calculated or original
+    group['value_type'] = np.where(
+        (group['quarter'] == 'Q1') | (group['quarter'] == 'Q2') | (group['quarter'] == 'Q3') | (group['quarter'] == 'Q4'),
+        'calculated',
+        'original'
+    )
+
+# Concatenate the updated groups back into a DataFrame
+df = pd.concat(groups)
+
+# Sort the DataFrame by company name and year
+df.sort_values(['company_name', 'year'], inplace=True)
+
+
+import pandas as pd
+
+def fill_missing_data(df):
+  """Fills up the missing quarterly earnings data in the given DataFrame.
+
+  Args:
+    df: The DataFrame containing the quarterly earnings data.
+  """
+
+  # Skip rows where Q4 data is missing.
+  df = df[df['q4'].notnull()]
+
+  # For rows where Q4 and Q2 are present, calculate the percentage contribution of
+  # each quarter to the total earnings for the previous year.
+  for i in range(len(df)):
+    if df.loc[i, 'q4'].notnull() and df.loc[i, 'q2'].notnull():
+      prev_year_data = df[df['company_name'] == df.loc[i, 'company_name']
+                        & df['year'] == df.loc[i, 'year'] - 1]
+      if len(prev_year_data) > 0:
+        df.loc[i, 'q1_pct'] = prev_year_data['q1'].sum() / prev_year_data['q4'].sum()
+        df.loc[i, 'q3_pct'] = prev_year_data['q3'].sum() / prev_year_data['q4'].sum()
+
+  # For rows where Q1 and Q3 are missing, calculate them using the percentage
+  # contributions calculated above.
+  for i in range(len(df)):
+    if df.loc[i, 'q1'].isnull() and df.loc[i, 'q3'].isnull():
+      if df.loc[i, 'q4'].notnull() and df.loc[i, 'q2'].notnull():
+        df.loc[i, 'q1'] = (df.loc[i, 'q4'] - df.loc[i, 'q2']) * df.loc[i, 'q1_pct']
+        df.loc[i, 'q3'] = (df.loc[i, 'q4'] - df.loc[i, 'q2']) * df.loc[i, 'q3_pct']
+
+  # Recalculate Q4 and Q2 using the percentage contributions calculated above.
+  for i in range(len(df)):
+    if df.loc[i, 'q1'].notnull() and df.loc[i, 'q3'].notnull():
+      df.loc[i, 'q4'] = df.loc[i, 'q1'] + df.loc[i, 'q2'] + df.loc[i, 'q3']
+      df.loc[i, 'q2'] = df.loc[i, 'q1_pct'] * df.loc[i, 'q4']
+
+  # Add a new column to indicate whether the quarterly earnings were calculated.
+  df['calculated'] = ['calculated' if pd.isnull(x) else 'original' for x in df['q1']]
+
+  return df
+
+
+if _name_ == '_main_':
+  df = pd.read_csv('quarterly_earnings.csv')
+  df = fill_missing_data(df)
+  df.to_csv('quarterly_earnings_filled.csv', index=False)
